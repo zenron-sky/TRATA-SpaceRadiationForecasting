@@ -378,8 +378,8 @@ A:
 ---
 
 **Delivered:** complete, working, tested prototype ready for:
-- Hackathon demo
+- working demo
 - Production integration path
-- Technology transfer to ISRO
+- Technology transfer to official space orgranisations
 
 **Questions?** See API_REFERENCE.md or reach out with specifics.
