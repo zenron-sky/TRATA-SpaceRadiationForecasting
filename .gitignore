@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pkl
+*.joblib
+*.npz
+*.pt
+outputs/
+*.log
+.env
