@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>TRATA — Space Radiation Forecasting Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e17; --panel: #121826; --panel2: #161e2e; --border: #232c3f;
+    --text: #e8edf5; --muted: #8b97ab; --accent: #ff8c3a;
+    --nominal: #2ecc71; --elevated: #f1c40f; --severe: #e67e22; --hazardous: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:20px; letter-spacing:0.5px; }
+  header h1 span { color: var(--accent); }
+  header .sub { color:var(--muted); font-size:12px; margin-top:4px; }
+  #alertBar { padding:10px 28px; font-weight:600; font-size:14px; display:none; }
+  #alertBar.active { display:block; background: linear-gradient(90deg, rgba(231,76,60,0.25), rgba(231,76,60,0.05)); border-bottom:1px solid var(--hazardous); color:#ff9d91; }
+  main { padding: 24px 28px; max-width:1400px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .card .label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.6px; }
+  .card .value { font-size:24px; font-weight:700; margin-top:6px; }
+  .card .value.small { font-size:16px; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+  .badge.Nominal { background:rgba(46,204,113,0.15); color:var(--nominal); }
+  .badge.Elevated { background:rgba(241,196,15,0.15); color:var(--elevated); }
+  .badge.Severe { background:rgba(230,126,34,0.15); color:var(--severe); }
+  .badge.Hazardous { background:rgba(231,76,60,0.15); color:var(--hazardous); }
+  .section-title { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; margin: 28px 0 12px; }
+  .forecast-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+  .fcard { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; }
+  .fcard .h { font-size:13px; color:var(--muted); margin-bottom:4px; }
+  .fcard .flux { font-size:26px; font-weight:700; margin:6px 0; }
+  .conf-bar-bg { height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; margin-top:10px; }
+  .conf-bar { height:100%; background:var(--accent); }
+  .conf-label { font-size:11px; color:var(--muted); margin-top:4px; }
+  .charts { display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-top:8px; }
+  canvas { width:100% !important; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .panel h3 { margin:0 0 10px; font-size:13px; color:var(--muted); text-transform:uppercase; }
+  .attr-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:13px; border-bottom:1px solid var(--border); }
+  .attr-bar-bg { flex:1; height:6px; background:var(--panel2); border-radius:4px; margin:0 10px; overflow:hidden; }
+  .attr-bar { height:100%; background:var(--accent); }
+  .metrics-table { width:100%; border-collapse: collapse; font-size:13px; margin-top:8px;}
+  .metrics-table th, .metrics-table td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); color:var(--muted); }
+  .metrics-table td:first-child, .metrics-table th:first-child { color:var(--text); }
+  #fileFallback { display:none; padding:40px; text-align:center; }
+  #fileFallback input { margin-top:14px; }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:30px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Aditya<span>Netra</span> — Space Radiation Forecasting</h1>
+    <div class="sub">End-to-End Early Warning System for ISRO Geostationary Satellites · PS14</div>
+    <div class="sub" id="modelArch" style="margin-top:2px; color:var(--accent);"></div>
+  </div>
+  <div class="sub" id="generatedAt">—</div>
+</header>
+
+<div id="alertBar"></div>
+
+<div id="fileFallback">
+  <p>Couldn't auto-load <code>outputs/forecast_output.json</code> (browsers block local file fetches).</p>
+  <p>Run the pipeline, then either serve this folder with <code>python3 -m http.server</code> and reopen, or load the JSON manually below:</p>
+  <input type="file" id="jsonPicker" accept=".json" />
+</div>
+
+<main id="mainContent" style="display:none;">
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Current Electron Flux (&gt;2 MeV)</div>
+      <div class="value" id="curFlux">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Current Risk Level</div>
+      <div class="value" id="curRisk">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Solar Wind Speed</div>
+      <div class="value small" id="curSpeed">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Kp / Dst Index</div>
+      <div class="value small" id="curKpDst">—</div>
+    </div>
+  </div>
+
+  <div class="section-title">Multi-Horizon Forecast</div>
+  <div class="forecast-row" id="forecastRow"></div>
+
+  <div class="section-title">Monitoring &amp; Forecast Visualization</div>
+  <div class="charts">
+    <div class="panel">
+      <h3>Electron Flux — Last 48h + Forecast</h3>
+      <canvas id="fluxChart" height="110"></canvas>
+    </div>
+    <div class="panel">
+      <h3>Model Explainability — Top Drivers</h3>
+      <div id="attrList"></div>
+    </div>
+  </div>
+
+  <div class="charts" style="margin-top:16px;">
+    <div class="panel">
+      <h3>Solar Wind Speed (km/s)</h3>
+      <canvas id="speedChart" height="80"></canvas>
+    </div>
+    <div class="panel">
+      <h3>Validation Metrics (Test Set)</h3>
+      <table class="metrics-table" id="metricsTable">
+        <thead><tr><th>Horizon</th><th>RMSE (log10)</th><th>Corr.</th><th>Risk Acc.</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>End-to-End Space Radiation Forecasting · Early Warning · Decision Support for Geostationary Satellites — TRATA stack</footer>
+
+<script>
+const HORIZON_ORDER = ["45min", "6hr", "12hr"];
+
+function fmtFlux(v) {
+  if (v >= 1e6) return (v/1e6).toFixed(2) + "M";
+  if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
+  return v.toFixed(0);
+}
+
+function render(data) {
+  document.getElementById("fileFallback").style.display = "none";
+  document.getElementById("mainContent").style.display = "block";
+  document.getElementById("generatedAt").textContent = "Generated: " + new Date(data.generated_at).toLocaleString();
+  document.getElementById("modelArch").textContent = data.model_architecture || "";
+
+  const cc = data.current_conditions;
+  document.getElementById("curFlux").textContent = fmtFlux(cc.electron_flux_2mev) + " pfu";
+  document.getElementById("curRisk").innerHTML = `<span class="badge ${cc.risk_level}">${cc.risk_level}</span>`;
+  document.getElementById("curSpeed").textContent = cc.solar_wind_speed_kms + " km/s";
+  document.getElementById("curKpDst").textContent = `Kp ${cc.kp_index} / Dst ${cc.dst_index_nt} nT`;
+
+  const alertBar = document.getElementById("alertBar");
+  if (data.overall_alert.active) {
+    alertBar.classList.add("active");
+    alertBar.textContent = "⚠ " + data.overall_alert.message;
+  }
+
+  const row = document.getElementById("forecastRow");
+  row.innerHTML = "";
+  HORIZON_ORDER.forEach(h => {
+    const f = data.forecasts[h];
+    const div = document.createElement("div");
+    div.className = "fcard";
+    div.innerHTML = `
+      <div class="h">${f.horizon_label} forecast</div>
+      <div class="flux">${fmtFlux(f.predicted_flux_2mev)} pfu</div>
+      <span class="badge ${f.risk_level}">${f.risk_level}</span>
+      <div class="conf-bar-bg"><div class="conf-bar" style="width:${f.confidence_pct}%"></div></div>
+      <div class="conf-label">Confidence: ${f.confidence_pct}%</div>
+    `;
+    row.appendChild(div);
+  });
+
+  const attrList = document.getElementById("attrList");
+  attrList.innerHTML = "";
+  data.explainability.top_contributing_variables.forEach(v => {
+    const d = document.createElement("div");
+    d.className = "attr-row";
+    d.innerHTML = `<span>${v.feature}</span>
+      <div class="attr-bar-bg"><div class="attr-bar" style="width:${v.importance_pct}%"></div></div>
+      <span>${v.importance_pct}%</span>`;
+    attrList.appendChild(d);
+  });
+
+  const tbody = document.querySelector("#metricsTable tbody");
+  tbody.innerHTML = "";
+  Object.entries(data.validation_metrics || {}).forEach(([k, m]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${k.replace("target_","")}</td><td>${m.rmse_log10_flux}</td><td>${m.correlation}</td><td>${(m.risk_classification_accuracy*100).toFixed(1)}%</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const h = data.history;
+  const labels = h.timestamps.map(t => new Date(t).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}));
+
+  new Chart(document.getElementById("fluxChart"), {
+    type: "line",
+    data: { labels, datasets: [{
+      label: "Electron Flux (>2MeV)", data: h.electron_flux_2mev,
+      borderColor: "#ff8c3a", backgroundColor: "rgba(255,140,58,0.08)", fill:true, pointRadius:0, borderWidth:1.6, tension:0.15
+    }]},
+    options: { responsive:true, scales: { y: { type:'logarithmic', grid:{color:'#1c2538'}, ticks:{color:'#8b97ab'} }, x: { display:false } }, plugins:{ legend:{labels:{color:'#8b97ab'}} } }
+  });
+
+  new Chart(document.getElementById("speedChart"), {
+    type: "line",
+    data: { labels, datasets: [{
+      label: "Solar Wind Speed (km/s)", data: h.solar_wind_speed_kms,
+      borderColor: "#4fa3ff", backgroundColor: "rgba(79,163,255,0.08)", fill:true, pointRadius:0, borderWidth:1.6, tension:0.15
+    }]},
+    options: { responsive:true, scales: { y: { grid:{color:'#1c2538'}, ticks:{color:'#8b97ab'} }, x: { display:false } }, plugins:{ legend:{labels:{color:'#8b97ab'}} } }
+  });
+}
+
+// Try to auto-fetch the forecast JSON (works when served over http://)
+fetch("../outputs/forecast_output.json")
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(render)
+  .catch(() => {
+    document.getElementById("fileFallback").style.display = "block";
+  });
+
+document.getElementById("jsonPicker").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => render(JSON.parse(evt.target.result));
+  reader.readAsText(file);
+});
+</script>
+</body>
+</html>
