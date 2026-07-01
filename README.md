@@ -8,6 +8,130 @@ the TRATA architecture (Layers 01–06). Built with **synthetic data**
 delayed electron response) so it runs standalone for a hackathon demo —
 swap in real GOES/Wind/GRASP CDF data later without changing the pipeline.
 
+# 📖 Overview
+
+Modern satellites operating in **Geostationary Earth Orbit (GEO)**
+constantly face radiation hazards produced by solar storms.
+
+Events such as
+
+-   Coronal Mass Ejections (CMEs)
+-   High-speed solar wind streams
+-   Southward IMF (Interplanetary Magnetic Field) turnings
+
+can dramatically increase energetic electron populations surrounding
+satellites.
+
+These high-energy particles are capable of causing
+
+-   Surface charging
+-   Deep dielectric charging
+-   Electronic component degradation
+-   Temporary instrument failures
+-   Permanent satellite damage
+
+Current monitoring systems mainly report **current conditions**, but
+mission operators require **early forecasts** so they can take
+preventive actions before hazardous radiation environments develop.
+
+------------------------------------------------------------------------
+
+# 💡 The Solution
+
+TRATA addresses this challenge by combining
+
+-   Temporal Deep Learning
+-   Physics-informed Feature Engineering
+-   Ensemble Machine Learning
+-   Explainable AI
+-   Confidence Estimation
+
+into one forecasting pipeline capable of predicting future energetic
+electron flux before hazardous conditions occur.
+
+Instead of relying on a single black-box neural network, TRATA uses a
+**hybrid AI architecture**.
+
+``` text
+Historical Solar Wind
+          │
+          ▼
+ Transformer Encoder
+(Long-term temporal learning)
+          │
+ Learned Temporal Embedding
+          │
+          ▼
+ Random Forest
+(Physics-aware nonlinear prediction)
+          │
+          ▼
+45 min • 6 hr • 12 hr Forecasts
+          │
+          ▼
+Risk Classification
+          │
+          ▼
+Interactive Dashboard
+```
+
+The architecture closely follows the official **TRATA Layer 01--06**
+design proposed in the hackathon statement.
+
+------------------------------------------------------------------------
+
+# 🚀 Key Features
+
+## 🌞 Multi-Horizon Forecasting
+
+Predicts energetic electron flux at
+
+-   ⏱️ 45 Minutes
+-   🛰️ 6 Hours
+-   🌍 12 Hours
+
+using one shared temporal representation.
+
+## 🤖 Hybrid AI Model
+
+### Transformer Encoder
+
+Responsible for learning long-range temporal dependencies, delayed CME
+responses, hidden temporal patterns, and sequential solar wind
+behaviour.
+
+### Random Forest
+
+Uses the Transformer embedding together with current physics variables
+to model nonlinear interactions while remaining interpretable.
+
+## 📊 Explainable AI
+
+Highlights dominant physics variables, feature importance, solar wind
+influence, IMF behaviour, and geomagnetic activity.
+
+## 📈 Confidence Estimation
+
+Uses **Monte Carlo Dropout** with 30 stochastic forward passes to
+estimate prediction uncertainty.
+
+## ⚠️ Radiation Risk Classification
+
+  Level          Meaning
+  -------------- -------------------------------
+  🟢 Nominal     Safe operating environment
+  🟡 Elevated    Increased radiation
+  🟠 Severe      Significant charging risk
+  🔴 Hazardous   Immediate operational concern
+
+## 📊 Interactive Dashboard
+
+Provides live monitoring, historical trends, forecasts, explainability,
+alerts, and validation metrics.
+
+------------------------------------------------------------------------
+
+
 ## Stack (TRATA)
 - **Language:** Python 3.x
 - **Modeling:** PyTorch Transformer encoder (temporal embedding) → scikit-learn
